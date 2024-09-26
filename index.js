@@ -1,22 +1,24 @@
 const express = require('express');
 const app = express();
-const usersRouter = require('./routes/users');
-const productsRouter = require('./routes/products');
-const ordersRouter = require('./routes/orders');
+const port = 3000;
 
 app.use(express.json());
 
-// Usar las rutas de manera modular
-app.use('/users', usersRouter);
-app.use('/products', productsRouter);
-app.use('/orders', ordersRouter);
+// Import routes
+const userRoutes = require('./routes/users').router;
+const productRoutes = require('./routes/products').router;
+const orderRoutes = require('./routes/orders');
 
-// Manejar error 404 para rutas no definidas
+// Use routes
+app.use('/users', userRoutes);
+app.use('/products', productRoutes);
+app.use('/orders', orderRoutes);
+
+// Handle undefined routes
 app.use((req, res) => {
-  res.status(404).json({ message: 'Ruta no encontrada' });
+  res.status(404).json({ message: 'Route not found' });
 });
 
-const PORT = 3000;
-app.listen(PORT, () => {
-  console.log(`Servidor corriendo en el puerto ${PORT}`);
+app.listen(port, () => {
+  console.log(`Server running on http://localhost:${port}`);
 });
