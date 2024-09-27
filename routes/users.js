@@ -1,68 +1,81 @@
 const express = require('express');
 const router = express.Router();
 
-let users = [];
-const adminCredentials = { email: "admin@admin.com", password: "admin" };
+let users = []; // Array for storing users
 
-// Middleware for token authentication
-function authenticateToken(req, res, next) {
-  const token = req.headers['authorization'];
-  if (token !== 'Bearer admin-token') {
-    return res.status(403).json({ message: 'Invalid JWT Token' });
-  }
-  next();
+// Middleware to validate the correct user format
+function validateUser(req, res, next) {
+    const { id, name, email, age } = req.body;
+
+    // Check if id is a positive integer
+    if (!Number.isInteger(Number(id)) || Number(id) <= 0) {
+        return res.status(400).json({ message: 'Invalid or missing field: id. It must be a positive integer.' });
+    }
+
+    // Check if name is a non-empty string
+    if (typeof name !== 'string' || name.trim() === "") {
+        return res.status(400).json({ message: 'Invalid or missing field: name' });
+    }
+
+    // Check if email is a valid non-empty string
+    if (typeof email !== 'string' || email.trim() === "") {
+        return res.status(400).json({ message: 'Invalid or missing field: email' });
+    }
+
+    // Check if age is a positive number
+    if (!Number.isInteger(Number(age)) || Number(age) <= 0) {
+        return res.status(400).json({ message: 'Invalid or missing field: age. It must be a positive number.' });
+    }
+
+    // Convert id and age to strings for storage
+    req.body.id = String(id);
+    req.body.age = String(age);
+
+    next();
 }
 
-// User login (POST /login)
-router.post('/login', (req, res) => {
-  const { email, password } = req.body;
-  if (email === adminCredentials.email && password === adminCredentials.password) {
-    return res.status(200).json({ token: 'admin-token' });
-  } else {
-    return res.status(401).json({ message: 'Invalid email or password' });
-  }
+// Route to get all users
+router.get('/', (req, res) => {
+    res.json(users);
 });
 
-// Get all users (GET /users)
-router.get('/', authenticateToken, (req, res) => {
-  res.json(users);
+// Route to create a new user
+router.post('/', validateUser, (req, res) => {
+    const newUser = req.body;
+
+    // Ensure the ID is unique
+    const existingUser = users.find(u => u.id === newUser.id);
+    if (existingUser) {
+        return res.status(400).json({ message: 'ID already exists, please use a unique ID.' });
+    }
+
+    users.push(newUser);
+    res.status(201).json(newUser);
 });
 
-// Create a new user (POST /users)
-router.post('/', authenticateToken, (req, res) => {
-  const { id, name, email, age } = req.body;
-
-  if (users.find(user => user.id === id)) {
-    return res.status(400).json({ message: 'User ID already exists' });
-  }
-
-  users.push({ id: String(id), name, email, age: String(age) });
-  res.status(201).json({ message: 'User created successfully' });
+// Route to get a user by ID
+router.get('/:id', (req, res) => {
+    const user = users.find(u => u.id === req.params.id);
+    if (!user) return res.status(404).json({ message: 'User not found' });
+    res.json(user);
 });
 
-// Get user by ID (GET /users/:id)
-router.get('/:id', authenticateToken, (req, res) => {
-  const user = users.find(user => user.id === req.params.id);
-  if (!user) return res.status(404).json({ message: 'User not found' });
-  res.json(user);
+// Route to update a user by ID
+router.put('/:id', validateUser, (req, res) => {
+    const userIndex = users.findIndex(u => u.id === req.params.id);
+    if (userIndex === -1) return res.status(404).json({ message: 'User not found' });
+
+    users[userIndex] = { ...users[userIndex], ...req.body };
+    res.json(users[userIndex]);
 });
 
-// Update user (PUT /users/:id)
-router.put('/:id', authenticateToken, (req, res) => {
-  const userIndex = users.findIndex(user => user.id === req.params.id);
-  if (userIndex === -1) return res.status(404).json({ message: 'User not found' });
+// Route to delete a user by ID
+router.delete('/:id', (req, res) => {
+    const userIndex = users.findIndex(u => u.id === req.params.id);
+    if (userIndex === -1) return res.status(404).json({ message: 'User not found' });
 
-  users[userIndex] = { ...users[userIndex], ...req.body };
-  res.json({ message: 'User updated successfully' });
+    users.splice(userIndex, 1);
+    res.status(204).send();
 });
 
-// Delete user (DELETE /users/:id)
-router.delete('/:id', authenticateToken, (req, res) => {
-  const userIndex = users.findIndex(user => user.id === req.params.id);
-  if (userIndex === -1) return res.status(404).json({ message: 'User not found' });
-
-  users.splice(userIndex, 1);
-  res.status(204).send();
-});
-
-module.exports = { router, users, authenticateToken };
+module.exports = { router, users };
